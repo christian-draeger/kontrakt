@@ -1,0 +1,142 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Create a release with semantic version. Either choose "conventional commit" to determine next release version automatically based on conventional commit messages or force a certain release type by selecting it manually.'
+        type: choice
+        required: true
+        default: 'automatic'
+        options:
+          - 'automatic'
+          - major
+          - minor
+          - patch
+          - alpha
+          - beta
+          - pre
+          - rc
+          - stable
+
+jobs:
+  tag_management:
+    runs-on: ubuntu-latest
+    outputs:
+      currentVersion: ${{ steps.export_previous_tag.outputs.tag }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest tag
+        id: previous_tag
+        uses: WyriHaximus/github-action-get-previous-tag@v1
+        with:
+          fallback: 0.0.0
+
+      - name: export previous tag
+        id: export_previous_tag
+        run: echo "tag=${{ steps.previous_tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
+
+  determine_version:
+    needs: tag_management
+    outputs:
+      newVersion: ${{ steps.set_version.outputs.new_version }}
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Get Next Version based on conventional commit messages
+        if: ${{ inputs.release_type == 'automatic' }}
+        id: version_by_conventional_commit
+        uses: ietf-tools/semver-action@v1.9.0
+        with:
+          token: ${{ github.token }}
+          branch: main
+          noVersionBumpBehavior: warn
+          skipInvalidTags: true
+          fallbackTag: 0.0.0
+
+      - name: Get Next Version based on given version fragment input
+        if: ${{ inputs.release_type != 'automatic' }}
+        id: version_by_fragment
+        uses: christian-draeger/increment-semantic-version@1.2.3
+        with:
+          current-version: ${{ needs.tag_management.outputs.currentVersion }}
+          version-fragment: ${{ inputs.release_type }}
+
+      - name: export new version
+        id: set_version
+        run: |
+          if [ "${{ inputs.release_type }}" = "automatic" ]; then
+            echo "new_version=${{ steps.version_by_conventional_commit.outputs.nextStrict }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "new_version=${{ steps.version_by_fragment.outputs.next-version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'liberica'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build with Gradle Wrapper
+        run: ./gradlew build --s
+
+  publish_to_maven_central:
+    if: ${{ needs.determine_version.outputs.newVersion != '' }}
+    needs:
+      - determine_version
+      - build
+    runs-on: ubuntu-latest
+    env:
+      ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+      ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+      ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_IN_MEMORY_KEY_ID }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_IN_MEMORY_KEY_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'liberica'
+
+      - name: Publish package to Maven Central Repository
+        run: ./gradlew publishToMavenCentral -PVERSION_NAME=${{ needs.determine_version.outputs.newVersion }} --no-configuration-cache --s
+
+  release_tagging:
+    needs:
+      - publish_to_maven_central
+      - tag_management
+      - determine_version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create dummy commit and tag new version
+        if: ${{ needs.determine_version.outputs.newVersion != needs.tag_management.outputs.currentVersion }}
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git commit --allow-empty -m 'chore(release): bump version ${{ needs.tag_management.outputs.currentVersion }} -> ${{ needs.determine_version.outputs.newVersion }}'
+          git tag ${{ needs.determine_version.outputs.newVersion }}
+          git push origin main --tags

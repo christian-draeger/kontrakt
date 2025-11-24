@@ -1,0 +1,46 @@
+name: Update Version Catalog
+
+on:
+  schedule:
+    # Runs every 1st day of month at 02:00 AM
+    - cron: '0 2 1 * *'
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+jobs:
+  update-version-catalog:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'liberica'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Gradle versionCatalogUpdate
+        run: ./gradlew versionCatalogUpdate
+
+      - name: Check for changes
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git diff --exit-code || git commit -am "Update libs.versions.toml"
+
+      # Push changes and create a pull request
+      - name: Push changes and create PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: auto-update/version-catalog-${{ github.run_id }}
+          commit-message: "Update version catalog"
+          title: "Update version catalog"
+          body: |
+            This PR updates the `libs.versions.toml` file by running the Gradle `versionCatalogUpdate` task.
+          labels: 'maintenance'
+
+      - name: Trigger build workflow
+        run: |
+          echo "PR created, build workflow should be triggered automatically."
