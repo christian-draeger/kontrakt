@@ -1,6 +1,6 @@
 package codes.draeger.utils
 
-import codes.draeger.example.extensions.example.foobar
+import codes.draeger.kontrakt.extensions.spring.foobar
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

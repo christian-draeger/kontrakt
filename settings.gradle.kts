@@ -1,4 +1,4 @@
-rootProject.name = "kotlin-library-template"
+rootProject.name = "kontrakt"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
@@ -15,8 +15,8 @@ dependencyResolutionManagement {
 }
 
 include(":core")
-include(":example")
-project(":example").projectDir = file("extensions/example")
+include(":spring")
+project(":spring").projectDir = file("extensions/spring")
 
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0"

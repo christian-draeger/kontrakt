@@ -1,4 +1,4 @@
-package codes.draeger.example.core
+package codes.draeger.kontrakt.core
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 

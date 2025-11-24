@@ -10,7 +10,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(projects.core)
-            api(projects.example)
+            api(projects.spring)
         }
     }
 }
