@@ -15,6 +15,8 @@ dependencyResolutionManagement {
 }
 
 include(":core")
+include(":spring-react")
+project(":spring-react").projectDir = file("examples/spring-react")
 include(":spring")
 project(":spring").projectDir = file("extensions/spring")
 

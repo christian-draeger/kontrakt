@@ -5,19 +5,9 @@ plugins {
     id("kotlin-library-convention")
 }
 
-// aggregate dependents to an all-in-one library
-kotlin {
-    sourceSets {
-        commonMain.dependencies {
-            api(projects.core)
-            api(projects.spring)
-        }
-    }
-}
-
 tasks {
-    // detektAll is a task that runs detekt on all src sets
     val detektAll by registering {
+        description = "runs detekt on all src sets"
         allprojects {
             this@registering.dependsOn(tasks.withType<Detekt>())
         }

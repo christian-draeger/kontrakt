@@ -26,7 +26,7 @@ public class TypeScriptGenerator {
         /**
          * router
          */
-        sb.append("export const contract = os.router({\n")
+        sb.append("export const contract = {\n")
 
         val routeStrings = api.routes.map { route ->
             """
@@ -40,7 +40,7 @@ public class TypeScriptGenerator {
         }
 
         sb.append(routeStrings.joinToString(",\n"))
-        sb.append("\n});\n")
+        sb.append("\n};\n")
 
         return sb.toString()
     }
