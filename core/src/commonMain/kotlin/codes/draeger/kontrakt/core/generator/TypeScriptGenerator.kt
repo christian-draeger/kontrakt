@@ -1,6 +1,10 @@
 package codes.draeger.kontrakt.core.generator
 
-import codes.draeger.kontrakt.core.model.*
+import codes.draeger.kontrakt.core.model.ApiDefinition
+import codes.draeger.kontrakt.core.model.DataType
+import codes.draeger.kontrakt.core.model.SchemaDefinition
+import codes.draeger.kontrakt.core.model.SchemaField
+import codes.draeger.kontrakt.core.model.Validator
 import java.time.LocalDateTime
 
 public class TypeScriptGenerator {
@@ -23,7 +27,7 @@ public class TypeScriptGenerator {
          * router
          */
         sb.append("export const contract = os.router({\n")
-        
+
         val routeStrings = api.routes.map { route ->
             """
             |  ${route.operationId}: os.route({
@@ -34,7 +38,7 @@ public class TypeScriptGenerator {
             |    .output(${renderType(route.outputType)})
             """.trimMargin()
         }
-        
+
         sb.append(routeStrings.joinToString(",\n"))
         sb.append("\n});\n")
 
@@ -44,13 +48,13 @@ public class TypeScriptGenerator {
     private fun generateZodSchema(schema: SchemaDefinition, sb: StringBuilder) {
         val schemaName = "${schema.name}Schema"
         sb.append("export const $schemaName = z.object({\n")
-        
+
         val fields = schema.fields.joinToString(",\n") { field ->
             val baseZod = renderType(field.type)
             val withValidators = applyValidators(baseZod, field)
             "  ${field.name}: $withValidators"
         }
-        
+
         sb.append(fields)
         sb.append("\n});\n")
         sb.append("export type ${schema.name} = z.infer<typeof $schemaName>;\n\n")
